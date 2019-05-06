@@ -1,9 +1,11 @@
 package moleculerjs
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/moleculer-go/moleculer"
 	"github.com/moleculer-go/moleculer/broker"
@@ -13,7 +15,8 @@ import (
 )
 
 func moleculerJs(natsUrl string) *exec.Cmd {
-	cmd := exec.Command("node", "services.js", natsUrl)
+
+	cmd := exec.CommandContext(context.Background(), "node", "services.js", natsUrl)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -42,13 +45,30 @@ var _ = Describe("Moleculerjs", func() {
 	It("should discover and call a moleculer JS service over NATS", func() {
 		cmd := moleculerJs(natsUrl)
 		Expect(cmd).ShouldNot(BeNil())
-		go cmd.Wait()
+		jsEnded := make(chan bool)
+		go func() {
+			cmd.Wait()
+			jsEnded <- true
+		}()
 
 		bkr := broker.New(&moleculer.Config{Transporter: natsUrl})
-		bkr.Publish(&UserService{})
+		userSvc := &UserService{make(chan bool)}
+		bkr.Publish(userSvc)
 		bkr.Start()
+		time.Sleep(time.Second * 2)
 
-		Expect(true).Should(BeTrue())
+		r := <-bkr.Call("user.create", map[string]interface{}{
+			"id":    10,
+			"name":  "John",
+			"email": "john@snow.com",
+		})
+		Expect(r.IsError()).Should(BeFalse())
+		Expect(<-userSvc.profileCreated).Should(BeTrue())
+
+		fmt.Println("<-userSvc.profileCreated")
+
+		<-bkr.Call("profile.finish", true)
+		Expect(<-jsEnded).Should(BeTrue())
 
 		bkr.Stop()
 	})
