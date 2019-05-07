@@ -18,13 +18,23 @@ import (
 
 func moleculerJs(natsUrl string) *exec.Cmd {
 
-	cmdCtx, _ := context.WithTimeout(context.Background(), time.Second*20)
-	cmd := exec.CommandContext(cmdCtx, "node", "services.js", natsUrl)
+	cmdCtx, _ := context.WithTimeout(context.Background(), time.Minute*2)
+	cmd := exec.CommandContext(cmdCtx, "npm", "install")
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	if err != nil {
+		fmt.Println("Failed on npm install - error: ", err)
+	}
+
+	cmdCtx, _ = context.WithTimeout(context.Background(), time.Second*20)
+	cmd = exec.CommandContext(cmdCtx, "node", "services.js", natsUrl)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	err := cmd.Start()
+	err = cmd.Start()
 	if err != nil {
 		fmt.Println("error starting node - error: ", err)
 		return nil
