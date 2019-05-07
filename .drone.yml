@@ -24,10 +24,8 @@ steps:
       - export STAN_HOST="nats-streaming"
       - export NATS_HOST="nats-streaming"
       - go build ./moleculerjs
-      - curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash
-      - export NVM_DIR="${XDG_CONFIG_HOME/:-$HOME/.}nvm"
-      - [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-      - nvm install 10
+      - curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
+      - sudo apt-get install -y nodejs
       - cd ./moleculerjs
       - pwd
       - npm install
