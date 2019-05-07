@@ -11,7 +11,6 @@ let looper = true;
 
 broker.createService({
   name: "profile",
-  //dependencies: "user",
   actions: {
     create(ctx) {
       const user = ctx.params;
@@ -29,11 +28,21 @@ broker.createService({
       return profile;
     },
 
+    async metarepeat(ctx) {
+      console.log("[moleculer-JS] profile.metarepeat ctx.meta: ", ctx.meta);
+      return { meta: ctx.meta, params: ctx.params };
+    },
+
     async mistake(ctx) {
       let panixError = "";
       let failError = "";
+      broker.waitForServices("user");
       try {
-        const panic = await ctx.call("user.panix", {});
+        const panic = await ctx.call(
+          "user.panix",
+          {},
+          { meta: { name: "John", sword: "Valyrian Steel" } }
+        );
       } catch (e) {
         console.log("error calling panic: ", e.message);
         panixError = e.message;

@@ -55,7 +55,7 @@ var _ = Describe("Moleculerjs", func() {
 		}()
 
 		bkr := broker.New(&moleculer.Config{Transporter: natsUrl})
-		userSvc := &UserService{make(chan bool)}
+		userSvc := &UserService{profileCreated: make(chan bool)}
 		bkr.Publish(userSvc)
 		bkr.Start()
 		time.Sleep(time.Second)
@@ -68,12 +68,31 @@ var _ = Describe("Moleculerjs", func() {
 		Expect(r.IsError()).Should(BeFalse())
 		Expect(<-userSvc.profileCreated).Should(BeTrue())
 
-		fmt.Println("<-userSvc.profileCreated")
+		//test moleculer JS sending meta info on action to moleculer go
+		onPanixCalled := false
+		userSvc.OnPanix = func(ctx moleculer.Context) {
+			Expect(ctx.Meta().Get("name").String()).Should(Equal("John"))
+			Expect(ctx.Meta().Get("sword").String()).Should(Equal("Valyrian Steel"))
+			onPanixCalled = true
+		}
 
 		mistake := <-bkr.Call("profile.mistake", true)
 		Expect(mistake.IsError()).Should(BeTrue())
 		fmt.Println("mistake: ", mistake)
 		Expect(mistake.Error().Error()).Should(Equal("Error from JS side! panixError: [this action will panic!] failError: [this actions returns an error!]"))
+
+		Expect(onPanixCalled).Should(BeTrue())
+
+		//test moleculer Go sending meta info on action to moleculer JS
+		r = <-bkr.Call("profile.metarepeat", nil, moleculer.Options{
+			Meta: payload.Empty().Add("country", "NZ").Add("cached", "maybe"),
+		})
+		fmt.Println("meta test: ", r)
+		Expect(r.Get("meta").Exists()).Should(BeTrue())
+		Expect(r.Get("meta").Get("country").String()).Should(Equal("NZ"))
+		Expect(r.Get("meta").Get("cached").String()).Should(Equal("maybe"))
+
+		Expect(r.Get("params").Exists()).Should(BeTrue())
 
 		notifierSvc := &NotifierSvc{make(chan bool)}
 		bkr.Publish(notifierSvc)

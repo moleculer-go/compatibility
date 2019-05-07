@@ -1,0 +1,30 @@
+kind: pipeline
+name: default
+
+platform:
+  os: linux
+  arch: amd64
+
+services:
+  - name: nats-streaming
+    image: nats-streaming
+    command: [-mc, 0]
+    ports:
+      - 4222
+
+steps:
+  - name: tests
+    image: golang:1.12
+    environment:
+      CODECOV_TOKEN:
+        from_secret: CODECOV_TOKEN
+      COVERALLS_TOKEN:
+        from_secret: COVERALLS_TOKEN
+    commands:
+      - export STAN_HOST="nats-streaming"
+      - export NATS_HOST="nats-streaming"
+      - go build
+      - ginkgo -r --randomizeAllSpecs --failFast --cover --trace
+      - gover ./ coverage.txt
+      - curl -s https://codecov.io/bash | bash || echo "Error uploading codecov"
+      - goveralls -coverprofile=coverage.txt -service=drone.io || echo "Error uploading coveralls"

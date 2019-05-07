@@ -12,3 +12,4 @@
 *.out
 moleculerjs/node_modules/
 *.coverprofile
+moleculerjs/moleculer_debug/

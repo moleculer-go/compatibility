@@ -8,6 +8,7 @@ import (
 
 type UserService struct {
 	profileCreated chan bool
+	OnPanix        func(moleculer.Context)
 }
 
 func (s *UserService) Name() string {
@@ -37,6 +38,8 @@ func (s *UserService) Update(ctx moleculer.Context, user moleculer.Payload) mole
 
 func (s *UserService) Panix(ctx moleculer.Context, params moleculer.Payload) moleculer.Payload {
 	ctx.Logger().Info("user.panix called! ")
+	s.OnPanix(ctx)
+
 	panic("this action will panic!")
 }
 
