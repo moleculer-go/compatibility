@@ -23,10 +23,8 @@ steps:
     commands:
       - export STAN_HOST="nats-streaming"
       - export NATS_HOST="nats-streaming"
-      - go build
+      - go build ./moleculerjs
       - ginkgo -r --randomizeAllSpecs --failFast --cover --trace
-      - go get -v github.com/modocache/gover
-      - gover ./ coverage.txt
+      - go run github.com/modocache/gover ./ coverage.txt
       - curl -s https://codecov.io/bash | bash || echo "Error uploading codecov"
-      - go get -v github.com/mattn/goveralls
-      - goveralls -coverprofile=coverage.txt -service=drone.io || echo "Error uploading coveralls"
+      - go run github.com/mattn/goveralls -coverprofile=coverage.txt -service=drone.io || echo "Error uploading coveralls"
