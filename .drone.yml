@@ -25,7 +25,8 @@ steps:
       - export NATS_HOST="nats-streaming"
       - go build ./moleculerjs
       - curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
-      - sudo apt-get install -y nodejs
+      - apt-get update
+      - apt-get install -y nodejs
       - cd ./moleculerjs
       - pwd
       - npm install
