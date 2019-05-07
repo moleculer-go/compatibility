@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/moleculer-go/moleculer/payload"
+
 	"github.com/moleculer-go/moleculer"
 	"github.com/moleculer-go/moleculer/broker"
 
@@ -16,7 +18,8 @@ import (
 
 func moleculerJs(natsUrl string) *exec.Cmd {
 
-	cmd := exec.CommandContext(context.Background(), "node", "services.js", natsUrl)
+	cmdCtx, _ := context.WithTimeout(context.Background(), time.Second*20)
+	cmd := exec.CommandContext(cmdCtx, "node", "services.js", natsUrl)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -55,7 +58,7 @@ var _ = Describe("Moleculerjs", func() {
 		userSvc := &UserService{make(chan bool)}
 		bkr.Publish(userSvc)
 		bkr.Start()
-		time.Sleep(time.Second * 2)
+		time.Sleep(time.Second)
 
 		r := <-bkr.Call("user.create", map[string]interface{}{
 			"id":    10,
@@ -67,9 +70,45 @@ var _ = Describe("Moleculerjs", func() {
 
 		fmt.Println("<-userSvc.profileCreated")
 
-		<-bkr.Call("profile.finish", true)
+		mistake := <-bkr.Call("profile.mistake", true)
+		Expect(mistake.IsError()).Should(BeTrue())
+		fmt.Println("mistake: ", mistake)
+		Expect(mistake.Error().Error()).Should(Equal("Error from JS side! panixError: [this action will panic!] failError: [this actions returns an error!]"))
+
+		notifierSvc := &NotifierSvc{make(chan bool)}
+		bkr.Publish(notifierSvc)
+		time.Sleep(time.Millisecond * 300)
+
+		finish := <-bkr.Call("profile.finish", true)
+
+		Expect(finish.String()).Should(Equal("JS side will explode in 500 miliseconds!"))
+
+		Expect(<-notifierSvc.received).Should(BeTrue())
 		Expect(<-jsEnded).Should(BeTrue())
 
 		bkr.Stop()
 	})
 })
+
+type NotifierSvc struct {
+	received chan bool
+}
+
+func (s *NotifierSvc) Name() string {
+	return "notifier"
+}
+
+func (s *NotifierSvc) Send(ctx moleculer.Context, params moleculer.Payload) moleculer.Payload {
+	ctx.Logger().Info("[notifier.send] params: ", params)
+
+	n := payload.Empty().Add(
+		"notificationId", "10").Add(
+		"content", params)
+
+	ctx.Emit("notifier.sent", n)
+
+	go func() {
+		s.received <- true
+	}()
+	return n
+}
