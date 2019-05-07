@@ -24,6 +24,14 @@ steps:
       - export STAN_HOST="nats-streaming"
       - export NATS_HOST="nats-streaming"
       - go build ./moleculerjs
+      - curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash
+      - export NVM_DIR="${XDG_CONFIG_HOME/:-$HOME/.}nvm"
+      - [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
+      - nvm install 10
+      - cd ./moleculerjs
+      - pwd
+      - npm install
+      - cd ..
       - go run github.com/onsi/ginkgo/ginkgo -r --randomizeAllSpecs --failFast --cover --trace
       - go run github.com/modocache/gover ./ coverage.txt
       - curl -s https://codecov.io/bash | bash || echo "Error uploading codecov"
