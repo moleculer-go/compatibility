@@ -24,7 +24,7 @@ steps:
       - export STAN_HOST="nats-streaming"
       - export NATS_HOST="nats-streaming"
       - go build ./moleculerjs
-      - ginkgo -r --randomizeAllSpecs --failFast --cover --trace
+      - go run github.com/onsi/ginkgo/ginkgo -r --randomizeAllSpecs --failFast --cover --trace
       - go run github.com/modocache/gover ./ coverage.txt
       - curl -s https://codecov.io/bash | bash || echo "Error uploading codecov"
       - go run github.com/mattn/goveralls -coverprofile=coverage.txt -service=drone.io || echo "Error uploading coveralls"
