@@ -75,7 +75,7 @@ var _ = Describe("Moleculerjs", func() {
 			"name":  "John",
 			"email": "john@snow.com",
 		})
-		Expect(r.IsError()).Should(BeFalse())
+		Expect(r.Error()).Should(BeNil())
 		Expect(<-userSvc.profileCreated).Should(BeTrue())
 
 		//test moleculer JS sending meta info on action to moleculer go
