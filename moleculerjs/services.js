@@ -7,7 +7,7 @@ const { ServiceBroker } = require("moleculer");
 
 const broker = new ServiceBroker({ transporter });
 
-let looper = true;
+let looper = false;
 
 broker.createService({
   name: "profile",
