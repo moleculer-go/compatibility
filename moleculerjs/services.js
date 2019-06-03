@@ -83,7 +83,37 @@ broker.createService({
         process.exit();
       }, 1000);
       return "JS side will explode in 500 miliseconds!";
-    }
+    },
+
+    "mutationExample": {
+      params: {
+        name: { "type": "string", "optional": false },
+        lastname: { "type": "string", "optional": true },
+      },
+      output: {
+        eventId: "number",
+        createdAt: "number"
+      },
+      graphql: "mutation",
+      handler: async (ctx) => {
+        console.log("do nothing...");
+      },
+    },
+
+    "queryExample": {
+      params: {
+        name: { "type": "string", "optional": false },
+        lastname: { "type": "string", "optional": true },
+      },
+      output: {
+        eventId: "number",
+        createdAt: "number"
+      },
+      graphql: "query",
+      handler: async (ctx) => {
+        console.log("do nothing...");
+      },
+    },
   },
   events: {
     "user.created": user => {
