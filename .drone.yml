@@ -23,6 +23,8 @@ steps:
     commands:
       - export STAN_HOST="nats-streaming"
       - export NATS_HOST="nats-streaming"
+      - go get github.com/onsi/ginkgo/ginkgo@v1.16.2
+      - go get github.com/onsi/ginkgo/ginkgo/outline@v1.16.2
       - go build ./moleculerjs
       - curl -sL https://deb.nodesource.com/setup_12.x | bash -
       - apt-get update
