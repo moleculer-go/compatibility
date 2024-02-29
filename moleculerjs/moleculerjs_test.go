@@ -104,6 +104,25 @@ var _ = Describe("Moleculerjs", func() {
 
 		Expect(r.Get("params").Exists()).Should(BeTrue())
 
+		//get node services - shuold bring the Moleculer js services
+		services := <-bkr.Call("$node.services", map[string]interface{}{
+			"onlyAvailable": true,
+			"withEndpoints": true,
+		})
+		Expect(services.Error()).Should(BeNil())
+		list := services.MapArray()
+		fmt.Println("$node.services results: ")
+		for _, item := range list {
+			fmt.Println("Available: ", item["available"])
+			fmt.Println("HasLocal: ", item["hasLocal"])
+			fmt.Println("Endpoints: ")
+			for _, endpoint := range item["endpoints"].([]map[string]interface{}) {
+				fmt.Println("  Available: ", endpoint["available"])
+				fmt.Println("  NodeID: ", endpoint["nodeID"])
+			}
+			fmt.Println(" ")
+		}
+
 		notifierSvc := &NotifierSvc{make(chan bool)}
 		bkr.Publish(notifierSvc)
 		time.Sleep(time.Millisecond * 300)
@@ -114,6 +133,34 @@ var _ = Describe("Moleculerjs", func() {
 
 		Expect(<-notifierSvc.received).Should(BeTrue())
 		Expect(<-jsEnded).Should(BeTrue())
+
+		services = <-bkr.Call("$node.services", map[string]interface{}{
+			"onlyAvailable": true,
+			"withEndpoints": true,
+		})
+		Expect(services.Error()).Should(BeNil())
+		list = services.MapArray()
+		fmt.Println("$node.services results: ")
+		for _, item := range list {
+			fmt.Println("Available: ", item["available"])
+			fmt.Println("HasLocal: ", item["hasLocal"])
+			fmt.Println("Endpoints: ")
+			for _, endpoint := range item["endpoints"].([]map[string]interface{}) {
+				fmt.Println("  Available: ", endpoint["available"])
+				fmt.Println("  NodeID: ", endpoint["nodeID"])
+			}
+			fmt.Println(" ")
+		}
+
+		// For the available services, we call
+		// $node.services onlyAvailable:true and withEndpoints:true
+
+		// But this returns services that have already been "unpublished".
+		// Same thing happens on a node restart (when the nodeID stays the same):
+		// We still see the service published by the previous instance
+
+		//check that the moleculer go registry does not have the service aymore
+		//
 
 		bkr.Stop()
 	})

@@ -126,6 +126,7 @@ broker.createService({
     }
   }
 });
+
 broker.createService({
   name: "account",
   events: {
@@ -152,7 +153,14 @@ broker.createService({
 
 broker.start();
 
+// //un-register service
+// setInterval(_ => {
+   
+// }, 5 * 1000); // 5 seconds
+
+
+
 // Time bomb
 setInterval(_ => {
   process.exit();
-}, 20 * 1000); // 20 seconds
+}, 60 * 1000); // 60 seconds
