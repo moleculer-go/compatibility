@@ -104,24 +104,13 @@ var _ = Describe("Moleculerjs", func() {
 
 		Expect(r.Get("params").Exists()).Should(BeTrue())
 
-		//get node services - shuold bring the Moleculer js services
-		services := <-bkr.Call("$node.services", map[string]interface{}{
-			"onlyAvailable": true,
-			"withEndpoints": true,
-		})
-		Expect(services.Error()).Should(BeNil())
-		list := services.MapArray()
-		fmt.Println("$node.services results: ")
-		for _, item := range list {
-			fmt.Println("Available: ", item["available"])
-			fmt.Println("HasLocal: ", item["hasLocal"])
-			fmt.Println("Endpoints: ")
-			for _, endpoint := range item["endpoints"].([]map[string]interface{}) {
-				fmt.Println("  Available: ", endpoint["available"])
-				fmt.Println("  NodeID: ", endpoint["nodeID"])
-			}
-			fmt.Println(" ")
-		}
+		fmt.Println("printAvailableServices - shuold bring all Moleculer js services")
+		printAvailableServices(bkr)
+
+		r = <-bkr.Call("account.unregister", nil)
+		Expect(r.Error()).Should(BeNil())
+		fmt.Println("printAvailableServices - after account service was unpublished from JS side")
+		printAvailableServices(bkr)
 
 		notifierSvc := &NotifierSvc{make(chan bool)}
 		bkr.Publish(notifierSvc)
@@ -134,23 +123,8 @@ var _ = Describe("Moleculerjs", func() {
 		Expect(<-notifierSvc.received).Should(BeTrue())
 		Expect(<-jsEnded).Should(BeTrue())
 
-		services = <-bkr.Call("$node.services", map[string]interface{}{
-			"onlyAvailable": true,
-			"withEndpoints": true,
-		})
-		Expect(services.Error()).Should(BeNil())
-		list = services.MapArray()
-		fmt.Println("$node.services results: ")
-		for _, item := range list {
-			fmt.Println("Available: ", item["available"])
-			fmt.Println("HasLocal: ", item["hasLocal"])
-			fmt.Println("Endpoints: ")
-			for _, endpoint := range item["endpoints"].([]map[string]interface{}) {
-				fmt.Println("  Available: ", endpoint["available"])
-				fmt.Println("  NodeID: ", endpoint["nodeID"])
-			}
-			fmt.Println(" ")
-		}
+		fmt.Println("printAvailableServices - after JS broker ended")
+		printAvailableServices(bkr)
 
 		// For the available services, we call
 		// $node.services onlyAvailable:true and withEndpoints:true
@@ -165,6 +139,27 @@ var _ = Describe("Moleculerjs", func() {
 		bkr.Stop()
 	})
 })
+
+func printAvailableServices(bkr *broker.ServiceBroker) {
+	services := <-bkr.Call("$node.services", map[string]interface{}{
+		"onlyAvailable": true,
+		"withEndpoints": true,
+	})
+	Expect(services.Error()).Should(BeNil())
+	list := services.MapArray()
+	fmt.Println("$node.services results: ")
+	for _, item := range list {
+		fmt.Println("Name: ", item["name"])
+		fmt.Println("Available: ", item["available"])
+		fmt.Println("HasLocal: ", item["hasLocal"])
+		fmt.Println("Endpoints: ")
+		for _, endpoint := range item["endpoints"].([]map[string]interface{}) {
+			fmt.Println("  Available: ", endpoint["available"])
+			fmt.Println("  NodeID: ", endpoint["nodeID"])
+		}
+		fmt.Println(" ")
+	}
+}
 
 type NotifierSvc struct {
 	received chan bool

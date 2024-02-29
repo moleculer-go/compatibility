@@ -60,6 +60,9 @@ broker.createService({
       );
     },
 
+
+
+
     async finish(ctx) {
       console.log(
         "profile.finish called! will stop broker and finish process."
@@ -129,6 +132,13 @@ broker.createService({
 
 broker.createService({
   name: "account",
+  actions: {
+    async unregister(ctx) {
+      console.log("account.unregister called! will un-register service.");
+      await broker.destroyService("account");
+      return "Service un-registered!";
+    },
+  },
   events: {
     "profile.created": profile => {
       console.log(
