@@ -93,7 +93,7 @@ var _ = Describe("Moleculerjs", func() {
 
 		Expect(onPanixCalled).Should(BeTrue())
 
-		//test moleculer Go sending meta info on action to moleculer JS
+		// test moleculer Go sending meta info on action to moleculer JS //
 		r = <-bkr.Call("profile.metarepeat", nil, moleculer.Options{
 			Meta: payload.Empty().Add("country", "NZ").Add("cached", "maybe"),
 		})
@@ -104,13 +104,16 @@ var _ = Describe("Moleculerjs", func() {
 
 		Expect(r.Get("params").Exists()).Should(BeTrue())
 
-		fmt.Println("printAvailableServices - shuold bring all Moleculer js services")
-		printAvailableServices(bkr)
+		fmt.Println("checkAvailableServices - shuold bring all Moleculer js services")
+		checkAvailableServices(bkr, []string{"account", "$node", "user", "profile"})
 
 		r = <-bkr.Call("account.unregister", nil)
 		Expect(r.Error()).Should(BeNil())
-		fmt.Println("printAvailableServices - after account service was unpublished from JS side")
-		printAvailableServices(bkr)
+
+		time.Sleep(time.Millisecond * 300) // wait for local register to update
+
+		fmt.Println("checkAvailableServices - after account service was unpublished from JS side")
+		checkAvailableServices(bkr, []string{"$node", "user", "profile"})
 
 		notifierSvc := &NotifierSvc{make(chan bool)}
 		bkr.Publish(notifierSvc)
@@ -123,8 +126,10 @@ var _ = Describe("Moleculerjs", func() {
 		Expect(<-notifierSvc.received).Should(BeTrue())
 		Expect(<-jsEnded).Should(BeTrue())
 
-		fmt.Println("printAvailableServices - after JS broker ended")
-		printAvailableServices(bkr)
+		// time.Sleep(time.Millisecond * 700) // wait for JS to exit and local register to update
+
+		fmt.Println("checkAvailableServices - after JS broker ended")
+		checkAvailableServices(bkr, []string{"$node", "user", "notifier"})
 
 		// For the available services, we call
 		// $node.services onlyAvailable:true and withEndpoints:true
@@ -140,7 +145,7 @@ var _ = Describe("Moleculerjs", func() {
 	})
 })
 
-func printAvailableServices(bkr *broker.ServiceBroker) {
+func checkAvailableServices(bkr *broker.ServiceBroker, expectedServices []string) {
 	services := <-bkr.Call("$node.services", map[string]interface{}{
 		"onlyAvailable": true,
 		"withEndpoints": true,
@@ -148,8 +153,15 @@ func printAvailableServices(bkr *broker.ServiceBroker) {
 	Expect(services.Error()).Should(BeNil())
 	list := services.MapArray()
 	fmt.Println("$node.services results: ")
+	matches := 0
 	for _, item := range list {
-		fmt.Println("Name: ", item["name"])
+		name := item["name"].(string)
+		for _, expected := range expectedServices {
+			if expected == name {
+				matches++
+			}
+		}
+		fmt.Println("Name: ", name)
 		fmt.Println("Available: ", item["available"])
 		fmt.Println("HasLocal: ", item["hasLocal"])
 		fmt.Println("Endpoints: ")
@@ -159,6 +171,8 @@ func printAvailableServices(bkr *broker.ServiceBroker) {
 		}
 		fmt.Println(" ")
 	}
+	fmt.Println("matches:", matches, " expected: ", len(list))
+	Expect(matches).Should(Equal(len(list)))
 }
 
 type NotifierSvc struct {
