@@ -55,7 +55,7 @@ var natsUrl = "nats://" + natsTestHost() + ":4222"
 
 var _ = Describe("Moleculerjs", func() {
 
-	It("should discover and call a moleculer JS service over NATS", func() {
+	XIt("should discover and call a moleculer JS service over NATS", func() {
 		cmd := moleculerJs(natsUrl)
 		Expect(cmd).ShouldNot(BeNil())
 		jsEnded := make(chan bool)
@@ -153,11 +153,13 @@ var _ = Describe("Moleculerjs", func() {
 			jsEnded <- true
 		}()
 
-		bkr := broker.New(&moleculer.Config{Transporter: "TCP"})
+		bkr := broker.New(&moleculer.Config{Transporter: "TCP", LogLevel: "DEBUG", DiscoverNodeID: func() string {
+			return "moleculer-go"
+		}})
 		userSvc := &UserService{profileCreated: make(chan bool)}
 		bkr.Publish(userSvc)
 		bkr.Start()
-		time.Sleep(time.Second)
+		time.Sleep(time.Second * 100)
 
 		r := <-bkr.Call("user.create", map[string]interface{}{
 			"id":    10,

@@ -5,7 +5,7 @@ console.log("Start Moleculer JS with transporter: " + transporter);
 
 const { ServiceBroker } = require("moleculer");
 
-const broker = new ServiceBroker({ transporter });
+const broker = new ServiceBroker({ transporter, nodeID: "js-node", logLevel: "debug"});
 
 let looper = false;
 
