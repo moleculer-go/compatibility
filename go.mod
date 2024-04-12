@@ -8,3 +8,5 @@ require (
 	github.com/onsi/gomega v1.10.1
 	github.com/prometheus/procfs v0.0.0-20190507043628-bc6930f2d510 // indirect
 )
+
+replace github.com/moleculer-go/moleculer => /Users/rafael/dev/moleculer-go/moleculer

@@ -16,7 +16,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func moleculerJs(natsUrl string) *exec.Cmd {
+func moleculerJs(transporter string) *exec.Cmd {
 
 	cmdCtx, _ := context.WithTimeout(context.Background(), time.Minute*2)
 	cmd := exec.CommandContext(cmdCtx, "npm", "install")
@@ -29,7 +29,7 @@ func moleculerJs(natsUrl string) *exec.Cmd {
 	}
 
 	cmdCtx, _ = context.WithTimeout(context.Background(), time.Second*20)
-	cmd = exec.CommandContext(cmdCtx, "node", "services.js", natsUrl)
+	cmd = exec.CommandContext(cmdCtx, "node", "services.js", transporter)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -143,6 +143,106 @@ var _ = Describe("Moleculerjs", func() {
 
 		bkr.Stop()
 	})
+
+	It("should discover and call a moleculer JS service over TCP", func() {
+		cmd := moleculerJs("TCP")
+		Expect(cmd).ShouldNot(BeNil())
+		jsEnded := make(chan bool)
+		go func() {
+			cmd.Wait()
+			jsEnded <- true
+		}()
+
+		bkr := broker.New(&moleculer.Config{
+			Transporter:                "TCP",
+			WaitForDependenciesTimeout: 10 * time.Second,
+			LogLevel:                   "DEBUG",
+			DiscoverNodeID: func() string {
+				return "moleculer-go"
+			}})
+
+		userSvc := &UserService{profileCreated: make(chan bool)}
+		bkr.Publish(userSvc)
+		bkr.Start()
+		fmt.Println("waiting for profile service")
+		bkr.WaitFor("profile")
+		fmt.Println("profile service is available")
+
+		r := <-bkr.Call("user.create", map[string]interface{}{
+			"id":    10,
+			"name":  "John",
+			"email": "john@snow.com",
+		})
+		Expect(r.Error()).Should(BeNil())
+		Expect(<-userSvc.profileCreated).Should(BeTrue())
+
+		//test moleculer JS sending meta info on action to moleculer go
+		onPanixCalled := false
+		userSvc.OnPanix = func(ctx moleculer.Context) {
+			Expect(ctx.Meta().Get("name").String()).Should(Equal("John"))
+			Expect(ctx.Meta().Get("sword").String()).Should(Equal("Valyrian Steel"))
+			onPanixCalled = true
+		}
+
+		mistake := <-bkr.Call("profile.mistake", true)
+		Expect(mistake.IsError()).Should(BeTrue())
+		fmt.Println("mistake: ", mistake)
+		Expect(mistake.Error().Error()).Should(Equal("Error from JS side! panixError: [this action will panic!] failError: [this actions returns an error!]"))
+
+		Expect(onPanixCalled).Should(BeTrue())
+
+		// test moleculer Go sending meta info on action to moleculer JS //
+		r = <-bkr.Call("profile.metarepeat", nil, moleculer.Options{
+			Meta: payload.Empty().Add("country", "NZ").Add("cached", "maybe"),
+		})
+		fmt.Println("meta test: ", r)
+		Expect(r.Get("meta").Exists()).Should(BeTrue())
+		Expect(r.Get("meta").Get("country").String()).Should(Equal("NZ"))
+		Expect(r.Get("meta").Get("cached").String()).Should(Equal("maybe"))
+
+		Expect(r.Get("params").Exists()).Should(BeTrue())
+
+		fmt.Println("checkAvailableServices - shuold bring all Moleculer js services")
+		checkAvailableServices(bkr, []string{"account", "$node", "user", "profile"})
+
+		r = <-bkr.Call("account.unregister", nil)
+		Expect(r.Error()).Should(BeNil())
+
+		time.Sleep(time.Millisecond * 400) // wait for local register to update
+
+		fmt.Println("checkAvailableServices - after account service was unpublished from JS side")
+		checkAvailableServices(bkr, []string{"$node", "user", "profile"})
+
+		notifierSvc := &NotifierSvc{make(chan bool)}
+		bkr.Publish(notifierSvc)
+
+		time.Sleep(time.Second * 2)
+
+		finish := <-bkr.Call("profile.finish", true)
+
+		Expect(finish.String()).Should(Equal("JS side will explode in 500 miliseconds!"))
+
+		Expect(<-notifierSvc.received).Should(BeTrue())
+		Expect(<-jsEnded).Should(BeTrue())
+
+		time.Sleep(time.Second * 5) // wait for JS to exit and local register to update
+
+		fmt.Println("checkAvailableServices - after JS broker ended")
+		checkAvailableServices(bkr, []string{"$node", "user", "notifier"})
+
+		// For the available services, we call
+		// $node.services onlyAvailable:true and withEndpoints:true
+
+		// But this returns services that have already been "unpublished".
+		// Same thing happens on a node restart (when the nodeID stays the same):
+		// We still see the service published by the previous instance
+
+		//check that the moleculer go registry does not have the service aymore
+		//
+
+		bkr.Stop()
+	})
+
 })
 
 func checkAvailableServices(bkr *broker.ServiceBroker, expectedServices []string) {
@@ -158,6 +258,7 @@ func checkAvailableServices(bkr *broker.ServiceBroker, expectedServices []string
 		name := item["name"].(string)
 		for _, expected := range expectedServices {
 			if expected == name {
+				fmt.Println("Match: ", name)
 				matches++
 			}
 		}
@@ -171,8 +272,8 @@ func checkAvailableServices(bkr *broker.ServiceBroker, expectedServices []string
 		}
 		fmt.Println(" ")
 	}
-	fmt.Println("matches:", matches, " expected: ", len(list))
-	Expect(matches).Should(Equal(len(list)))
+	fmt.Println("matches:", matches, " expected: ", len(expectedServices), "expectedServices: ", expectedServices)
+	Expect(matches).Should(Equal(len(expectedServices)))
 }
 
 type NotifierSvc struct {
