@@ -6,11 +6,27 @@ Compatibility tests with other moleculer implementations.
 
 ## Moleculer JS
 
-## Running tests
-```
-ginkgo -r --randomizeAllSpecs --failFast --cover --trace
-```
+## dependencies
 
 YOu need Node JS with Npm installed
 
 The test will install the moleculerJS and its dependencies and start moleculer JS using node for testing.
+
+For the NATS test you need NATS running:
+
+```
+docker run -d -p 4222:4222 nats-streaming -mc 0
+```
+
+Test runners:
+
+```
+go get github.com/onsi/ginkgo/ginkgo/outline@v1.16.2
+go get github.com/onsi/ginkgo/ginkgo@v1.16.2
+```
+
+## Running tests
+
+```
+go run github.com/onsi/ginkgo/ginkgo -r
+```

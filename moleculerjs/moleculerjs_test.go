@@ -55,7 +55,7 @@ var natsUrl = "nats://" + natsTestHost() + ":4222"
 
 var _ = Describe("Moleculerjs", func() {
 
-	XIt("should discover and call a moleculer JS service over NATS", func() {
+	It("should discover and call a moleculer JS service over NATS", func() {
 		cmd := moleculerJs(natsUrl)
 		Expect(cmd).ShouldNot(BeNil())
 		jsEnded := make(chan bool)
@@ -153,13 +153,20 @@ var _ = Describe("Moleculerjs", func() {
 			jsEnded <- true
 		}()
 
-		bkr := broker.New(&moleculer.Config{Transporter: "TCP", LogLevel: "DEBUG", DiscoverNodeID: func() string {
-			return "moleculer-go"
-		}})
+		bkr := broker.New(&moleculer.Config{
+			Transporter:                "TCP",
+			WaitForDependenciesTimeout: 10 * time.Second,
+			LogLevel:                   "DEBUG",
+			DiscoverNodeID: func() string {
+				return "moleculer-go"
+			}})
+
 		userSvc := &UserService{profileCreated: make(chan bool)}
 		bkr.Publish(userSvc)
 		bkr.Start()
-		time.Sleep(time.Second * 100)
+		fmt.Println("waiting for profile service")
+		bkr.WaitFor("profile")
+		fmt.Println("profile service is available")
 
 		r := <-bkr.Call("user.create", map[string]interface{}{
 			"id":    10,
@@ -201,14 +208,15 @@ var _ = Describe("Moleculerjs", func() {
 		r = <-bkr.Call("account.unregister", nil)
 		Expect(r.Error()).Should(BeNil())
 
-		time.Sleep(time.Millisecond * 300) // wait for local register to update
+		time.Sleep(time.Millisecond * 400) // wait for local register to update
 
 		fmt.Println("checkAvailableServices - after account service was unpublished from JS side")
 		checkAvailableServices(bkr, []string{"$node", "user", "profile"})
 
 		notifierSvc := &NotifierSvc{make(chan bool)}
 		bkr.Publish(notifierSvc)
-		time.Sleep(time.Millisecond * 300)
+
+		time.Sleep(time.Second * 2)
 
 		finish := <-bkr.Call("profile.finish", true)
 
@@ -217,7 +225,7 @@ var _ = Describe("Moleculerjs", func() {
 		Expect(<-notifierSvc.received).Should(BeTrue())
 		Expect(<-jsEnded).Should(BeTrue())
 
-		// time.Sleep(time.Millisecond * 700) // wait for JS to exit and local register to update
+		time.Sleep(time.Second * 5) // wait for JS to exit and local register to update
 
 		fmt.Println("checkAvailableServices - after JS broker ended")
 		checkAvailableServices(bkr, []string{"$node", "user", "notifier"})
@@ -250,6 +258,7 @@ func checkAvailableServices(bkr *broker.ServiceBroker, expectedServices []string
 		name := item["name"].(string)
 		for _, expected := range expectedServices {
 			if expected == name {
+				fmt.Println("Match: ", name)
 				matches++
 			}
 		}
@@ -263,8 +272,8 @@ func checkAvailableServices(bkr *broker.ServiceBroker, expectedServices []string
 		}
 		fmt.Println(" ")
 	}
-	fmt.Println("matches:", matches, " expected: ", len(list))
-	Expect(matches).Should(Equal(len(list)))
+	fmt.Println("matches:", matches, " expected: ", len(expectedServices), "expectedServices: ", expectedServices)
+	Expect(matches).Should(Equal(len(expectedServices)))
 }
 
 type NotifierSvc struct {
