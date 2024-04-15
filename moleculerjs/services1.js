@@ -5,13 +5,18 @@ console.log("Start Moleculer JS with transporter: " + transporter);
 
 const { ServiceBroker } = require("moleculer");
 
-const broker = new ServiceBroker({ transporter, nodeID: "js-node", logLevel: "debug"});
+const broker = new ServiceBroker({ transporter, nodeID: process.env["NODE_ID"], logLevel: "trace"});
 
 let looper = false;
 
 broker.createService({
   name: "profile",
   actions: {
+
+    listServices(ctx) {
+      return ctx.call("$node.services");
+    },
+
     create(ctx) {
       const user = ctx.params;
       console.log("[moleculer-JS] profile.create action user: ", user);
@@ -36,7 +41,7 @@ broker.createService({
     async mistake(ctx) {
       let panixError = "";
       let failError = "";
-      broker.waitForServices("user");
+      await broker.waitForServices("user");
       try {
         const panic = await ctx.call(
           "user.panix",
@@ -59,9 +64,6 @@ broker.createService({
         `Error from JS side! panixError: [${panixError}] failError: [${failError}]`
       );
     },
-
-
-
 
     async finish(ctx) {
       console.log(
@@ -117,6 +119,12 @@ broker.createService({
         console.log("do nothing...");
       },
     },
+    async check(ctx) {
+      console.log("profile.check");
+      const random = Math.floor(Math.random() * 100);
+      ctx.emit("profile.check", { random });
+      return random;
+    },
   },
   events: {
     "user.created": user => {
@@ -137,6 +145,12 @@ broker.createService({
       console.log("account.unregister called! will un-register service.");
       await broker.destroyService("account");
       return "Service un-registered!";
+    },
+    async check(ctx) {
+      console.log("account.check");
+      const random = Math.floor(Math.random() * 100);
+      ctx.emit("account.check", { random });
+      return random;
     },
   },
   events: {
@@ -170,7 +184,7 @@ broker.start();
 
 
 
-// Time bomb
-setInterval(_ => {
-  process.exit();
-}, 60 * 1000); // 60 seconds
+// // Time bomb
+// setInterval(_ => {
+//   process.exit();
+// }, 5 * 60 * 1000); // 5 minutes
