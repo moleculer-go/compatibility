@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/moleculer-go/moleculer/payload"
+	"github.com/moleculer-go/moleculer/util"
 
 	"github.com/moleculer-go/moleculer"
 	"github.com/moleculer-go/moleculer/broker"
@@ -16,7 +17,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func moleculerJs(transporter string) *exec.Cmd {
+func moleculerJs(transporter, nodeID, jsFile string) *exec.Cmd {
 
 	cmdCtx, _ := context.WithTimeout(context.Background(), time.Minute*2)
 	cmd := exec.CommandContext(cmdCtx, "npm", "install")
@@ -29,10 +30,11 @@ func moleculerJs(transporter string) *exec.Cmd {
 	}
 
 	cmdCtx, _ = context.WithTimeout(context.Background(), time.Second*20)
-	cmd = exec.CommandContext(cmdCtx, "node", "services.js", transporter)
+	cmd = exec.CommandContext(cmdCtx, "node", jsFile, transporter)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Env = append(os.Environ(), "NODE_ID="+nodeID)
 
 	err = cmd.Start()
 	if err != nil {
@@ -56,7 +58,7 @@ var natsUrl = "nats://" + natsTestHost() + ":4222"
 var _ = Describe("Moleculerjs", func() {
 
 	It("should discover and call a moleculer JS service over NATS", func() {
-		cmd := moleculerJs(natsUrl)
+		cmd := moleculerJs(natsUrl, "js-node", "services.js")
 		Expect(cmd).ShouldNot(BeNil())
 		jsEnded := make(chan bool)
 		go func() {
@@ -145,7 +147,7 @@ var _ = Describe("Moleculerjs", func() {
 	})
 
 	It("should discover and call a moleculer JS service over TCP", func() {
-		cmd := moleculerJs("TCP")
+		cmd := moleculerJs("TCP", "js-node-1", "services1.js")
 		Expect(cmd).ShouldNot(BeNil())
 		jsEnded := make(chan bool)
 		go func() {
@@ -175,6 +177,11 @@ var _ = Describe("Moleculerjs", func() {
 		})
 		Expect(r.Error()).Should(BeNil())
 		Expect(<-userSvc.profileCreated).Should(BeTrue())
+
+		//get the internal state of the moleculer broker
+		r = <-bkr.Call("profile.listServices", nil)
+		Expect(r.Error()).Should(BeNil())
+		fmt.Println("listServices: ", util.PrettyPrintMap(r.MapArray()))
 
 		//test moleculer JS sending meta info on action to moleculer go
 		onPanixCalled := false
