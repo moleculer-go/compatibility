@@ -175,16 +175,38 @@ broker.createService({
   }
 });
 
+broker.createService({
+  name: "monitor",
+  actions: {
+    start(ctx) {
+      const params = ctx.params;
+      console.log("monitor.start action params: ", params);
+      ctx.emit("monitor.started", params);
+    },
+  },
+    
+  events: {
+    "user.*": params => {
+      console.log("user.* events - params: ", params);
+      monitorStore[]
+    },
+     "profile.*": params => {
+      console.log("profile.* events - params: ", params);
+      
+    },
+    "account.*": params => {
+      console.log(
+        "profile.* events - params: ",
+        params
+      );
+    }, 
+    "notifier.*": params => {
+      console.log(
+        "profile.* events - params: ",
+        params
+      );
+    }, 
+  }
+});
+
 broker.start();
-
-// //un-register service
-// setInterval(_ => {
-   
-// }, 5 * 1000); // 5 seconds
-
-
-
-// // Time bomb
-// setInterval(_ => {
-//   process.exit();
-// }, 5 * 60 * 1000); // 5 minutes
