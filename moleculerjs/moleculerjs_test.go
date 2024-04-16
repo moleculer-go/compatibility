@@ -58,7 +58,7 @@ var natsUrl = "nats://" + natsTestHost() + ":4222"
 var _ = Describe("Moleculerjs", func() {
 
 	It("should discover and call a moleculer JS service over NATS", func() {
-		cmd := moleculerJs(natsUrl, "js-node", "services.js")
+		cmd := moleculerJs(natsUrl, "js-node", "services1.js")
 		Expect(cmd).ShouldNot(BeNil())
 		jsEnded := make(chan bool)
 		go func() {
