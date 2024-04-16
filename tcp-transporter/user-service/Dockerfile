@@ -1,8 +1,7 @@
 FROM golang:1.22-alpine3.18
 WORKDIR /app
-COPY ./*.go ./
-COPY ./*.mod ./
-COPY ./*.sum ./
-# RUN go mod tidy
-RUN go build user-service.go
+COPY user-service.go /app/user-service.go
+COPY go.mod /app/go.mod
+COPY go.sum /app/go.sum
+RUN go build /app/user-service.go
 CMD [ "/app/user-service" ]
