@@ -1,11 +1,8 @@
 "use strict";
-
-const transporter = process.argv[2];
-console.log("Start Moleculer JS with transporter: " + transporter);
-
+ 
 const { ServiceBroker } = require("moleculer");
 
-const broker = new ServiceBroker({ transporter, nodeID: process.env["NODE_ID"], logLevel: "trace"});
+const broker = new ServiceBroker({ transporter: "TCP", nodeID: `monitor-node-${Math.random() * 1000}`, logLevel: "info"});
 
 const monitorStore = {
   user:[],
@@ -19,7 +16,7 @@ broker.createService({
   actions: {
     start(ctx) {
       const params = ctx.params;
-      console.log("monitor.start action params: ", params);
+      broker.logger.info("monitor.start action params: ", params);
       ctx.emit("monitor.started", params);
     },
 
@@ -30,22 +27,22 @@ broker.createService({
     
   events: {
     "user.*": params => {
-      console.log("user.* events - params: ", params);
+      broker.logger.info("user.* events - params: ", params);
       monitorStore.user.push(params);
     },
      "profile.*": params => {
-      console.log("profile.* events - params: ", params);
+      broker.logger.info("profile.* events - params: ", params);
       monitorStore.profile.push(params);
     },
     "account.*": params => {
-      console.log(
+      broker.logger.info(
         "profile.* events - params: ",
         params
       );
       monitorStore.account.push(params);
     }, 
     "notifier.*": params => {
-      console.log(
+      broker.logger.info(
         "profile.* events - params: ",
         params
       );
@@ -56,8 +53,8 @@ broker.createService({
 
 broker.start();
 
-console.log("wait for monitor service to be available!");
+broker.logger.info("wait for monitor service to be available!");
 broker.waitForServices(["monitor", "account", "profile", "user", "data"]).then(_ => {
-  console.log("monitor service dependencies are available!"); 
+  broker.logger.info("monitor service dependencies are available!"); 
   broker.call("monitor.start", { services: ["account", "profile", "user", "data"] });
 });

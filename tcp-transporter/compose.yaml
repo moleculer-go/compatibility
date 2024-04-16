@@ -1,17 +1,19 @@
 services:
-  # account:
-  #   build: ./account-service/
+  account:
+    build: ./account-service/
   #   ports:
   #     - "5210:5210"
   data:
-    build: ./data-service/
-  # monitor:
-  #   build: ./monitor-service/
+    build:
+      context: data-service
+  monitor:
+    build: ./monitor-service/
   #   ports:
   #     - "5212:5212"
-  # profile:
-  #   build: ./profile-service/
+  profile:
+    build: ./profile-service/
   #   ports:
   #     - "5213:5213"
   user:
-    build: ./user-service/
+    build:
+      context: user-service

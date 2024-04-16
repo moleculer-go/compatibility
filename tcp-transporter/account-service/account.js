@@ -1,11 +1,8 @@
 "use strict";
-
-const transporter = process.argv[2];
-console.log("Start Moleculer JS with transporter: " + transporter);
-
+ 
 const { ServiceBroker } = require("moleculer");
 
-const broker = new ServiceBroker({ transporter, nodeID: process.env["NODE_ID"], logLevel: "trace"});
+const broker = new ServiceBroker({ transporter: "TCP", nodeID: `account-node-${Math.random() * 1000}`, logLevel: "info"});
 
 let looper = false;
 

@@ -1,12 +1,9 @@
 "use strict";
 
-const transporter = process.argv[2];
-console.log("Start Moleculer JS with transporter: " + transporter);
-
 const { set } = require("lodash");
 const { ServiceBroker } = require("moleculer");
 
-const broker = new ServiceBroker({ transporter, nodeID: process.env["NODE_ID"], logLevel: "trace"});
+const broker = new ServiceBroker({ transporter: "TCP", nodeID: `profile-node-${Math.random() * 1000}`, logLevel: "info"});
 
 let looper = false;
 
@@ -20,7 +17,7 @@ broker.createService({
 
     create(ctx) {
       const user = ctx.params;
-      console.log("[moleculer-JS] profile.create action user: ", user);
+      broker.logger.info("[moleculer-JS] profile.create action user: ", user);
       const { id, name, email, age } = user;
       const profile = { user: { id, name, email, age }, type: "web-user" };
       ctx.emit("profile.created", profile);
@@ -29,7 +26,7 @@ broker.createService({
     },
 
     async metarepeat(ctx) {
-      console.log("[moleculer-JS] profile.metarepeat ctx.meta: ", ctx.meta);
+      broker.logger.info("[moleculer-JS] profile.metarepeat ctx.meta: ", ctx.meta);
       return { meta: ctx.meta, params: ctx.params };
     },
 
@@ -44,7 +41,7 @@ broker.createService({
           { meta: { name: "John", sword: "Valyrian Steel" } }
         );
       } catch (e) {
-        console.log("error calling panic: ", e.message);
+        broker.logger.info("error calling panic: ", e.message);
         panixError = e.message;
       }
 
@@ -52,7 +49,7 @@ broker.createService({
         const fail = await ctx.call("user.fail", {});
       } catch (e) {
         failError = e.message;
-        console.log("error calling fail: ", failError);
+        broker.logger.info("error calling fail: ", failError);
       }
 
       throw new Error(
@@ -61,7 +58,7 @@ broker.createService({
     },
 
     async finish(ctx) {
-      console.log(
+      broker.logger.info(
         "profile.finish called! will stop broker and finish process."
       );
       broker.waitForServices("notifier");
@@ -70,11 +67,11 @@ broker.createService({
           title: "shutdown",
           index
         });
-        console.log("profile.finish notification: ", notification);
+        broker.logger.info("profile.finish notification: ", notification);
       }
       looper = false;
 
-      console.log(
+      broker.logger.info(
         "profile.finish Notifications sent! will auto explode now..."
       );
 
@@ -96,7 +93,7 @@ broker.createService({
       },
       graphql: "mutation",
       handler: async (ctx) => {
-        console.log("do nothing...");
+        broker.logger.info("do nothing...");
       },
     },
 
@@ -111,33 +108,31 @@ broker.createService({
       },
       graphql: "query",
       handler: async (ctx) => {
-        console.log("do nothing...");
+        broker.logger.info("do nothing...");
       },
     },
     async check(ctx) {
-      console.log("profile.check");
+      broker.logger.info("profile.check");
       const random = Math.floor(Math.random() * 100);
       ctx.emit("profile.check", { random });
       return random;
     },
   },
   events: {
-    "user.created": user => {
-      console.log("[moleculer-JS] user.created event! - user: ", user);
-      console.log("wait for user service to be available!");
+    "user.created": async user => {
+      broker.logger.info("porofile service -> user.created event! - user: ", user);
+      broker.logger.info("wait for user service to be available!");
       broker.waitForServices("user");
-
-      broker.call("profile.create", user);
-      broker.call("user.get", user);
+      await broker.call("profile.create", await broker.call("user.get", user["id"]));
     }
   }
 });
 
 broker.start();
  
-console.log("wait for profile service to be available!");
+broker.logger.info("wait for profile service to be available!");
 broker.waitForServices(["profile"]).then(_ => {
-  console.log("profile service is available!");
+  broker.logger.info("profile service is available!");
 
   setInterval(_ => {
     const user = getRandomUser()
