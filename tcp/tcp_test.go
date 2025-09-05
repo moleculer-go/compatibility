@@ -44,23 +44,21 @@ func moleculerJs(transporter, nodeID, jsFile string) *exec.Cmd {
 var _ = Describe("TCP Moleculer Go ↔ JS Compatibility", func() {
 	var jsProcess *exec.Cmd
 
+	BeforeEach(func() {
+		// Start JS service
+		jsProcess = moleculerJs("TCP", "js-node-1", "services.js")
+		Expect(jsProcess).ShouldNot(BeNil())
+	})
+
 	AfterEach(func() {
-		// Ensure JS process is killed after each test
+		// Kill JS process (same as Redis test)
 		if jsProcess != nil && jsProcess.Process != nil {
 			jsProcess.Process.Kill()
-			time.Sleep(1 * time.Second)
+			jsProcess.Wait()
 		}
 	})
 
 	It("should discover and call a moleculer JS service over TCP", func() {
-		cmd := moleculerJs("TCP", "js-node-1", "services.js")
-		Expect(cmd).ShouldNot(BeNil())
-		jsProcess = cmd // Store reference for cleanup
-		jsEnded := make(chan bool)
-		go func() {
-			cmd.Wait()
-			jsEnded <- true
-		}()
 
 		bkr := broker.New(&moleculer.Config{
 			Transporter:                "TCP",
@@ -137,26 +135,6 @@ var _ = Describe("TCP Moleculer Go ↔ JS Compatibility", func() {
 		Expect(finish.String()).Should(Equal("JS side will explode in 500 miliseconds!"))
 
 		Expect(<-notifierSvc.received).Should(BeTrue())
-
-		// Wait for JS process to end with timeout
-		// The profile.finish action should cause the JS process to exit after 500ms
-		// Give it a bit more time to actually exit
-		time.Sleep(1 * time.Second)
-
-		select {
-		case <-jsEnded:
-			fmt.Println("JS process ended successfully")
-		case <-time.After(5 * time.Second):
-			fmt.Println("JS process did not end within timeout, killing it...")
-			// Kill the JS process if it's still running
-			if cmd.Process != nil {
-				cmd.Process.Kill()
-				// Wait a bit for the process to actually terminate
-				time.Sleep(1 * time.Second)
-			}
-		}
-
-		time.Sleep(time.Second * 2) // wait for JS to exit and local register to update
 
 		fmt.Println("checkAvailableServices - after JS broker ended")
 		checkAvailableServices(bkr, []string{"$node", "user", "notifier"})
