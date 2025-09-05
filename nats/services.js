@@ -111,6 +111,12 @@ broker.start().then(() => {
   // Keep the service running for a bit
   setTimeout(() => {
     console.log("🛑 JS Broker stopped");
-    broker.stop();
+    broker.stop().then(() => {
+      console.log("🛑 JS Broker stopped successfully, exiting process");
+      process.exit(0);
+    }).catch(err => {
+      console.error("Error stopping broker:", err);
+      process.exit(1);
+    });
   }, 5000);
 });

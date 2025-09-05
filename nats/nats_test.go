@@ -140,7 +140,7 @@ var _ = Describe("NATS Moleculer JS ↔ Go Compatibility", func() {
 		select {
 		case <-jsEnded:
 			fmt.Println("JS process ended successfully")
-		case <-time.After(5 * time.Second):
+		case <-time.After(10 * time.Second):
 			fmt.Println("JS process did not end within timeout, killing it...")
 			// Kill the JS process if it's still running
 			if cmd.Process != nil {
