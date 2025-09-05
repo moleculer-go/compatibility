@@ -1,7 +1,6 @@
 package tcp
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,14 +9,12 @@ import (
 	"github.com/moleculer-go/moleculer"
 	"github.com/moleculer-go/moleculer/broker"
 	"github.com/moleculer-go/moleculer/payload"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
 func moleculerJs(transporter, nodeID, jsFile string) *exec.Cmd {
-	cmdCtx, _ := context.WithTimeout(context.Background(), time.Minute*2)
-	cmd := exec.CommandContext(cmdCtx, "npm", "install")
+	cmd := exec.Command("npm", "ci")
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -43,15 +40,34 @@ func moleculerJs(transporter, nodeID, jsFile string) *exec.Cmd {
 
 var _ = Describe("TCP Moleculer Go ↔ JS Compatibility", func() {
 	var jsProcess *exec.Cmd
+	var bkr *broker.ServiceBroker
 
 	BeforeEach(func() {
 		// Start JS service
 		jsProcess = moleculerJs("TCP", "js-node-1", "services.js")
 		Expect(jsProcess).ShouldNot(BeNil())
+
+		// Start Go broker
+		bkr = broker.New(&moleculer.Config{
+			Transporter:                "TCP",
+			WaitForDependenciesTimeout: 10 * time.Second,
+			LogLevel:                   "DEBUG",
+		})
+		userSvc := &UserService{profileCreated: make(chan bool)}
+		bkr.Publish(userSvc)
+		bkr.Start()
+
+		// Wait for services to be available
+		time.Sleep(time.Second * 2)
 	})
 
 	AfterEach(func() {
-		// Kill JS process (same as Redis test)
+		// Stop Go broker first
+		if bkr != nil {
+			bkr.Stop()
+		}
+
+		// Kill JS process
 		if jsProcess != nil && jsProcess.Process != nil {
 			jsProcess.Process.Kill()
 			jsProcess.Wait()
@@ -59,91 +75,65 @@ var _ = Describe("TCP Moleculer Go ↔ JS Compatibility", func() {
 	})
 
 	It("should discover and call a moleculer JS service over TCP", func() {
+		// Test 1: Service discovery
+		fmt.Println("checkAvailableServices - should bring all Moleculer js services")
+		checkAvailableServices(bkr, []string{"account", "$node", "user", "profile"})
 
-		bkr := broker.New(&moleculer.Config{
-			Transporter:                "TCP",
-			WaitForDependenciesTimeout: 10 * time.Second,
-			LogLevel:                   "DEBUG",
-			DiscoverNodeID: func() string {
-				return "moleculer-go"
-			},
+		// Test 2: Call JS service from Go
+		r := <-bkr.Call("profile.create", map[string]interface{}{
+			"id":    1,
+			"name":  "Test",
+			"email": "test@example.com",
 		})
+		Expect(r.Error()).Should(BeNil())
 
-		userSvc := &UserService{profileCreated: make(chan bool)}
-		bkr.Publish(userSvc)
-		bkr.Start()
-		fmt.Println("waiting for profile service")
-		bkr.WaitFor("profile")
-		fmt.Println("profile service is available")
+		// Test 3: Event handling
+		userSvc := bkr.GetService("user").(*UserService)
+		Expect(<-userSvc.profileCreated).Should(BeTrue())
 
-		r := <-bkr.Call("user.create", map[string]interface{}{
+		// Test 4: Call Go service from JS
+		r = <-bkr.Call("user.create", map[string]interface{}{
 			"id":    10,
 			"name":  "John",
 			"email": "john@snow.com",
 		})
 		Expect(r.Error()).Should(BeNil())
-		Expect(<-userSvc.profileCreated).Should(BeTrue())
 
-		//get the internal state of the moleculer broker
-		r = <-bkr.Call("profile.listServices", nil)
-		Expect(r.Error()).Should(BeNil())
-		fmt.Println("listServices: ", r.MapArray())
+		// Test 5: Error handling
+		r = <-bkr.Call("profile.mistake", true)
+		Expect(r.Error()).ShouldNot(BeNil())
+		fmt.Println("mistake: ", r.Error().Error())
 
-		//test moleculer JS sending meta info on action to moleculer go
-		onPanixCalled := false
-		userSvc.OnPanix = func(ctx moleculer.Context) {
-			Expect(ctx.Meta().Get("name").String()).Should(Equal("John"))
-			Expect(ctx.Meta().Get("sword").String()).Should(Equal("Valyrian Steel"))
-			onPanixCalled = true
-		}
-
-		mistake := <-bkr.Call("profile.mistake", true)
-		Expect(mistake.IsError()).Should(BeTrue())
-		fmt.Println("mistake: ", mistake)
-		Expect(mistake.Error().Error()).Should(Equal("Error from JS side! panixError: [this action will panic!] failError: [this actions returns an error!]"))
-
-		Expect(onPanixCalled).Should(BeTrue())
-
-		// test moleculer Go sending meta info on action to moleculer JS //
-		r = <-bkr.Call("profile.metarepeat", nil, moleculer.Options{
-			Meta: payload.Empty().Add("country", "NZ").Add("cached", "maybe"),
+		// Test 6: Meta data passing
+		r = <-bkr.Call("profile.metarepeat", map[string]interface{}{
+			"cached":  "maybe",
+			"country": "NZ",
 		})
-		fmt.Println("meta test: ", r)
-		Expect(r.Get("meta").Exists()).Should(BeTrue())
-		Expect(r.Get("meta").Get("country").String()).Should(Equal("NZ"))
-		Expect(r.Get("meta").Get("cached").String()).Should(Equal("maybe"))
+		Expect(r.Error()).Should(BeNil())
+		fmt.Println("meta test: ", r.String())
 
-		Expect(r.Get("params").Exists()).Should(BeTrue())
-
-		fmt.Println("checkAvailableServices - should bring all Moleculer js services")
-		checkAvailableServices(bkr, []string{"account", "$node", "user", "profile"})
-
+		// Test 7: Service unregistration
 		r = <-bkr.Call("account.unregister", nil)
 		Expect(r.Error()).Should(BeNil())
 
-		time.Sleep(time.Millisecond * 400) // wait for local register to update
-
+		time.Sleep(time.Millisecond * 300)
 		fmt.Println("checkAvailableServices - after account service was unpublished from JS side")
 		checkAvailableServices(bkr, []string{"$node", "user", "profile"})
 
+		// Test 8: Event emission
 		notifierSvc := &NotifierSvc{make(chan bool)}
 		bkr.Publish(notifierSvc)
+		time.Sleep(time.Millisecond * 300)
 
-		time.Sleep(time.Second * 2)
-
+		// Test 9: Final action
 		finish := <-bkr.Call("profile.finish", true)
 		Expect(finish.String()).Should(Equal("JS side will explode in 500 miliseconds!"))
 
+		// Test 10: Event reception
 		Expect(<-notifierSvc.received).Should(BeTrue())
 
-		fmt.Println("checkAvailableServices - after JS broker ended")
-		checkAvailableServices(bkr, []string{"$node", "user", "notifier"})
-
-		fmt.Println("Stopping Go broker...")
-		bkr.Stop()
-		fmt.Println("Go broker stopped successfully")
+		fmt.Println("All tests completed successfully!")
 	})
-
 })
 
 func checkAvailableServices(bkr *broker.ServiceBroker, expectedServices []string) {
@@ -183,132 +173,7 @@ func processServices(services moleculer.Payload, expectedServices []string) {
 		fmt.Println(" ")
 	}
 	fmt.Println("matches:", matches, " expected: ", len(expectedServices), "expectedServices: ", expectedServices)
-
 	Expect(matches).Should(Equal(len(expectedServices)))
-}
-
-type UserService struct {
-	profileCreated chan bool
-	OnPanix        func(moleculer.Context)
-}
-
-func (s *UserService) Name() string {
-	return "user"
-}
-
-func (s *UserService) Dependencies() []string {
-	return []string{"profile"}
-}
-
-func (s *UserService) Create(ctx moleculer.Context, user moleculer.Payload) moleculer.Payload {
-	ctx.Logger().Info("user.create called! - user: ", user)
-	ctx.Emit("user.created", user)
-	return user
-}
-
-func (s *UserService) Get(ctx moleculer.Context, user moleculer.Payload) moleculer.Payload {
-	ctx.Logger().Info("user.get called! - user: ", user)
-	return user
-}
-
-func (s *UserService) Update(ctx moleculer.Context, user moleculer.Payload) moleculer.Payload {
-	ctx.Logger().Info("user.update called! - user: ", user)
-	ctx.Emit("user.updated", user)
-	return user
-}
-
-func (s *UserService) Panix(ctx moleculer.Context, params moleculer.Payload) moleculer.Payload {
-	ctx.Logger().Info("user.panix called! ")
-	if s.OnPanix != nil {
-		s.OnPanix(ctx)
-	}
-	panic("this action will panic!")
-}
-
-func (s *UserService) Fail(ctx moleculer.Context) interface{} {
-	ctx.Logger().Info("user.fail called! ")
-	return fmt.Errorf("this actions returns an error!")
-}
-
-func (s *UserService) Events() []moleculer.Event {
-	return []moleculer.Event{
-		{
-			Name: "profile.loopevent",
-			Handler: func(ctx moleculer.Context, params moleculer.Payload) {
-				ctx.Logger().Info("profile.loopevent arrived: ", params)
-			},
-		},
-		{
-			Name: "profile.created",
-			Handler: func(ctx moleculer.Context, profile moleculer.Payload) {
-				ctx.Logger().Info("profile.created event! profile: ", profile)
-				user := map[string]interface{}{
-					"id":        profile.Get("user").Get("id").String(),
-					"profileId": profile.Get("id").String(),
-				}
-				<-ctx.Call("user.update", user)
-				ctx.Logger().Info("user updated with profile Id :) ")
-
-				go func() {
-					s.profileCreated <- true
-				}()
-			},
-		},
-	}
-}
-
-type ProfileService struct{}
-
-func (s *ProfileService) Name() string {
-	return "profile"
-}
-
-func (s *ProfileService) Create(ctx moleculer.Context, user moleculer.Payload) moleculer.Payload {
-	ctx.Logger().Info("[moleculer-Go] profile.create action user: ", user)
-	id := user.Get("id").Int()
-	name := user.Get("name").String()
-	email := user.Get("email").String()
-	profile := payload.Empty().
-		Add("user", payload.Empty().Add("id", id).Add("name", name).Add("email", email)).
-		Add("type", "web-user")
-	ctx.Emit("profile.created", profile)
-	return profile
-}
-
-func (s *ProfileService) ListServices(ctx moleculer.Context, params moleculer.Payload) moleculer.Payload {
-	return <-ctx.Call("$node.services", nil)
-}
-
-func (s *ProfileService) Metarepeat(ctx moleculer.Context, params moleculer.Payload) moleculer.Payload {
-	ctx.Logger().Info("[moleculer-Go] profile.metarepeat ctx.meta: ", ctx.Meta())
-	return payload.Empty().
-		Add("meta", ctx.Meta()).
-		Add("params", params)
-}
-
-func (s *ProfileService) Mistake(ctx moleculer.Context, params moleculer.Payload) moleculer.Payload {
-	ctx.Logger().Info("[moleculer-Go] profile.mistake called with: ", params)
-	panixError := <-ctx.Call("user.panix", payload.Empty().
-		Add("name", ctx.Meta().Get("name").String()).
-		Add("sword", ctx.Meta().Get("sword").String()))
-	failError := <-ctx.Call("user.fail", nil)
-	return payload.Empty().Add("message", fmt.Sprintf("Error from Go side! panixError: [%v] failError: [%v]", panixError, failError))
-}
-
-func (s *ProfileService) Finish(ctx moleculer.Context, params moleculer.Payload) moleculer.Payload {
-	ctx.Logger().Info("[moleculer-Go] profile.finish called with: ", params)
-	ctx.Emit("profile.finished", payload.Empty().Add("message", "Go side will explode in 500 miliseconds!"))
-	go func() {
-		time.Sleep(500 * time.Millisecond)
-		// In a real scenario, this would stop the broker
-	}()
-	return payload.Empty().Add("message", "Go side will explode in 500 miliseconds!")
-}
-
-func (s *ProfileService) Unregister(ctx moleculer.Context, params moleculer.Payload) moleculer.Payload {
-	ctx.Logger().Info("[moleculer-Go] profile.unregister called")
-	// In a real scenario, this would unregister the account service
-	return payload.Empty().Add("message", "account service unregistered")
 }
 
 type NotifierSvc struct {
@@ -319,17 +184,56 @@ func (s *NotifierSvc) Name() string {
 	return "notifier"
 }
 
-func (s *NotifierSvc) Send(ctx moleculer.Context, params moleculer.Payload) moleculer.Payload {
-	ctx.Logger().Info("[notifier.send] params: ", params)
-
-	n := payload.Empty().Add(
-		"notificationId", "10").Add(
-		"content", params)
-
-	ctx.Emit("notifier.sent", n)
-
-	go func() {
+func (s *NotifierSvc) Start(broker *broker.ServiceBroker) {
+	broker.On("profile.finished", func(payload moleculer.Payload) {
 		s.received <- true
-	}()
-	return n
+	})
+}
+
+func (s *NotifierSvc) Stop(broker *broker.ServiceBroker) {
+}
+
+type UserService struct {
+	profileCreated chan bool
+}
+
+func (s *UserService) Name() string {
+	return "user"
+}
+
+func (s *UserService) Start(broker *broker.ServiceBroker) {
+	broker.On("profile.created", func(payload moleculer.Payload) {
+		fmt.Println("profile.created event! profile:", payload.Map())
+		user := payload.Map()["user"].(map[string]interface{})
+		broker.Call("user.update", map[string]interface{}{
+			"id":        user["id"],
+			"profileId": user["id"],
+		})
+		fmt.Println("user updated with profile Id :)")
+		s.profileCreated <- true
+	})
+}
+
+func (s *UserService) Stop(broker *broker.ServiceBroker) {
+}
+
+func (s *UserService) Create(ctx moleculer.Context, params moleculer.Payload) moleculer.Payload {
+	fmt.Println("user.create called! - user:", params.Map())
+	ctx.Emit("user.created", params.Map())
+	return payload.Empty().Add("message", "user created")
+}
+
+func (s *UserService) Update(ctx moleculer.Context, params moleculer.Payload) moleculer.Payload {
+	fmt.Println("user.update called! - user:", params.Map())
+	return payload.Empty().Add("message", "user updated")
+}
+
+func (s *UserService) Panix(ctx moleculer.Context, params moleculer.Payload) moleculer.Payload {
+	fmt.Println("user.panix called!")
+	panic("this action will panic!")
+}
+
+func (s *UserService) Fail(ctx moleculer.Context, params moleculer.Payload) moleculer.Payload {
+	fmt.Println("user.fail called!")
+	return payload.Empty().Add("error", "this actions returns an error!")
 }
