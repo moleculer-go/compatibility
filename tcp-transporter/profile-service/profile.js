@@ -131,8 +131,8 @@ broker.createService({
 broker.start();
  
 broker.logger.info("wait for profile service to be available!");
-broker.waitForServices(["profile"]).then(_ => {
-  broker.logger.info("profile service is available!");
+broker.waitForServices(["profile", "user"]).then(_ => {
+  broker.logger.info("profile and user services are available!");
 
   setInterval(_ => {
     const user = getRandomUser()

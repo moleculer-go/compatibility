@@ -161,7 +161,8 @@ var _ = Describe("Moleculerjs", func() {
 			LogLevel:                   "DEBUG",
 			DiscoverNodeID: func() string {
 				return "moleculer-go"
-			}})
+			},
+		})
 
 		userSvc := &UserService{profileCreated: make(chan bool)}
 		bkr.Publish(userSvc)

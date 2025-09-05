@@ -188,7 +188,6 @@ broker.createService({
   events: {
     "user.*": params => {
       console.log("user.* events - params: ", params);
-      monitorStore[]
     },
      "profile.*": params => {
       console.log("profile.* events - params: ", params);
