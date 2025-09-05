@@ -108,9 +108,10 @@ broker.start().then(() => {
     
   console.log("⏳ Running for 5 seconds to demonstrate events...");
   
-  // Keep the service running for a bit
+  // The service will be stopped by the profile.finish action
+  // Keep a fallback timeout in case profile.finish is not called
   setTimeout(() => {
-    console.log("🛑 JS Broker stopped");
+    console.log("🛑 JS Broker stopped by fallback timeout");
     broker.stop().then(() => {
       console.log("🛑 JS Broker stopped successfully, exiting process");
       process.exit(0);
@@ -118,5 +119,5 @@ broker.start().then(() => {
       console.error("Error stopping broker:", err);
       process.exit(1);
     });
-  }, 5000);
+  }, 10000); // Increased to 10 seconds as fallback
 });
