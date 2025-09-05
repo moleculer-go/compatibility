@@ -82,7 +82,7 @@ jobs:
 
     - name: Run NATS tests
       run: |
-        timeout 300s ginkgo ./nats --randomizeAllSpecs --failFast --cover --trace
+        timeout 120s ginkgo ./nats --randomizeAllSpecs --failFast --cover --trace
 
   # TCP tests
   tcp-tests:
@@ -138,7 +138,7 @@ jobs:
 
     - name: Run TCP tests
       run: |
-        timeout 300s ginkgo ./tcp --randomizeAllSpecs --failFast --cover --trace
+        timeout 120s ginkgo ./tcp --randomizeAllSpecs --failFast --cover --trace
 
   # Redis tests
   redis-tests:
@@ -229,4 +229,4 @@ jobs:
 
     - name: Run Redis tests
       run: |
-        timeout 300s ginkgo ./redis --randomizeAllSpecs --failFast --cover --trace
+        timeout 120s ginkgo ./redis --randomizeAllSpecs --failFast --cover --trace

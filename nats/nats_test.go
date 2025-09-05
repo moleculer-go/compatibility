@@ -55,10 +55,20 @@ func natsTestHost() string {
 var natsUrl = "nats://" + natsTestHost() + ":4222"
 
 var _ = Describe("NATS Moleculer JS ↔ Go Compatibility", func() {
+	var jsProcess *exec.Cmd
+
+	AfterEach(func() {
+		// Ensure JS process is killed after each test
+		if jsProcess != nil && jsProcess.Process != nil {
+			jsProcess.Process.Kill()
+			time.Sleep(1 * time.Second)
+		}
+	})
 
 	It("should discover and call a moleculer JS service over NATS", func() {
 		cmd := moleculerJs(natsUrl, "js-node", "services.js")
 		Expect(cmd).ShouldNot(BeNil())
+		jsProcess = cmd // Store reference for cleanup
 		jsEnded := make(chan bool)
 		go func() {
 			cmd.Wait()
@@ -130,11 +140,13 @@ var _ = Describe("NATS Moleculer JS ↔ Go Compatibility", func() {
 		select {
 		case <-jsEnded:
 			fmt.Println("JS process ended successfully")
-		case <-time.After(10 * time.Second):
-			fmt.Println("JS process did not end within timeout, continuing...")
+		case <-time.After(5 * time.Second):
+			fmt.Println("JS process did not end within timeout, killing it...")
 			// Kill the JS process if it's still running
 			if cmd.Process != nil {
 				cmd.Process.Kill()
+				// Wait a bit for the process to actually terminate
+				time.Sleep(1 * time.Second)
 			}
 		}
 
