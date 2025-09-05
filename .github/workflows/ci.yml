@@ -54,12 +54,8 @@ jobs:
 
     - name: Install Ginkgo
       run: |
-        go install github.com/onsi/ginkgo/ginkgo@v1.16.2
-        go install github.com/onsi/ginkgo/ginkgo/outline@v1.16.2
+        go install github.com/onsi/ginkgo/ginkgo@v1.16.4
 
-    - name: Build moleculerjs
-      run: go build ./moleculerjs
-      working-directory: .
 
     - name: Install Node.js dependencies
       run: |
@@ -85,7 +81,6 @@ jobs:
     - name: Run NATS tests
       run: |
         ginkgo ./moleculerjs --focus="should discover and call a moleculer JS service over NATS" --randomizeAllSpecs --failFast --cover --trace
-      working-directory: .
 
   # TCP tests
   tcp-tests:
@@ -129,12 +124,8 @@ jobs:
 
     - name: Install Ginkgo
       run: |
-        go install github.com/onsi/ginkgo/ginkgo@v1.16.2
-        go install github.com/onsi/ginkgo/ginkgo/outline@v1.16.2
+        go install github.com/onsi/ginkgo/ginkgo@v1.16.4
 
-    - name: Build moleculerjs
-      run: go build ./moleculerjs
-      working-directory: .
 
     - name: Install Node.js dependencies
       run: |
@@ -144,7 +135,6 @@ jobs:
     - name: Run TCP tests
       run: |
         ginkgo ./moleculerjs --focus="should discover and call a moleculer JS service over TCP" --randomizeAllSpecs --failFast --cover --trace
-      working-directory: .
 
   # Redis tests
   redis-tests:
@@ -199,12 +189,8 @@ jobs:
 
     - name: Install Ginkgo
       run: |
-        go install github.com/onsi/ginkgo/ginkgo@v1.16.2
-        go install github.com/onsi/ginkgo/ginkgo/outline@v1.16.2
+        go install github.com/onsi/ginkgo/ginkgo@v1.16.4
 
-    - name: Build moleculerjs
-      run: go build ./moleculerjs
-      working-directory: .
 
     - name: Install Node.js dependencies
       run: |
@@ -219,4 +205,3 @@ jobs:
     - name: Run Redis tests
       run: |
         ginkgo ./redis --randomizeAllSpecs --failFast --cover --trace
-      working-directory: .
