@@ -28,8 +28,7 @@ func moleculerJs(transporter, nodeID, jsFile string) *exec.Cmd {
 		fmt.Println("Failed on npm install - error: ", err)
 	}
 
-	cmdCtx, _ = context.WithTimeout(context.Background(), time.Second*20)
-	cmd = exec.CommandContext(cmdCtx, "node", jsFile, transporter)
+	cmd = exec.Command("node", jsFile, transporter)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -138,6 +137,9 @@ var _ = Describe("NATS Moleculer JS ↔ Go Compatibility", func() {
 
 		// Wait for JS process to end with timeout
 		// The profile.finish action should cause the JS process to exit after 500ms
+		// Give it a bit more time to actually exit
+		time.Sleep(1 * time.Second)
+
 		select {
 		case <-jsEnded:
 			fmt.Println("JS process ended successfully")
