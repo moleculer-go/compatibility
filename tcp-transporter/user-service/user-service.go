@@ -126,7 +126,7 @@ func main() {
 	bkr := broker.New(&moleculer.Config{
 		Transporter:                "TCP",
 		WaitForDependenciesTimeout: 10 * time.Second,
-		LogLevel:                   "DEBUG",
+		LogLevel:                   "INFO",
 		DiscoverNodeID: func() string {
 			return "user-service-node"
 		}})

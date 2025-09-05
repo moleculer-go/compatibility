@@ -1,6 +1,6 @@
 {
     "dependencies": {
-        "moleculer": "^0.14.13",
+        "moleculer": "^0.14.33",
         "nats": "^1.2.10",
         "lodash": ">=4.17.21"
     }

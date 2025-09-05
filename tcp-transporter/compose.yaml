@@ -4,8 +4,7 @@ services:
   #   ports:
   #     - "5210:5210"
   data:
-    build:
-      context: data-service
+    build: ./data-service/
   monitor:
     build: ./monitor-service/
   #   ports:
@@ -15,5 +14,4 @@ services:
   #   ports:
   #     - "5213:5213"
   user:
-    build:
-      context: user-service
+    build: ./user-service/
