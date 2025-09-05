@@ -1,4 +1,4 @@
-package moleculerjs
+package nats
 
 import (
 	"errors"

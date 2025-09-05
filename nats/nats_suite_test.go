@@ -1,4 +1,4 @@
-package moleculerjs
+package nats
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestMoleculerjs(t *testing.T) {
+func TestNats(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Moleculerjs Suite")
+	RunSpecs(t, "NATS Moleculer JS ↔ Go Compatibility Suite")
 }

@@ -59,7 +59,7 @@ jobs:
 
     - name: Install Node.js dependencies
       run: |
-        cd moleculerjs
+        cd nats
         npm ci
         cd ../redis
         npm ci
@@ -82,7 +82,7 @@ jobs:
 
     - name: Run NATS tests
       run: |
-        ginkgo ./moleculerjs --focus="should discover and call a moleculer JS service over NATS" --randomizeAllSpecs --failFast --cover --trace
+        ginkgo ./nats --randomizeAllSpecs --failFast --cover --trace
 
   # TCP tests
   tcp-tests:
@@ -131,14 +131,14 @@ jobs:
 
     - name: Install Node.js dependencies
       run: |
-        cd moleculerjs
+        cd nats
         npm ci
         cd ../redis
         npm ci
 
     - name: Run TCP tests
       run: |
-        ginkgo ./moleculerjs --focus="should discover and call a moleculer JS service over TCP" --randomizeAllSpecs --failFast --cover --trace
+        ginkgo ./tcp --randomizeAllSpecs --failFast --cover --trace
 
   # Redis tests
   redis-tests:
@@ -198,7 +198,7 @@ jobs:
 
     - name: Install Node.js dependencies
       run: |
-        cd moleculerjs
+        cd nats
         npm ci
         cd ../redis
         npm ci
