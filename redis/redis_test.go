@@ -1,6 +1,7 @@
 package redis
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -31,8 +32,10 @@ var _ = Describe("Redis Transporter", func() {
 
 	BeforeEach(func() {
 		// Create Redis transporter configuration
+		host := redisTestHost()
+		fmt.Printf("Redis test host: %s\n", host)
 		redisConfig := &redis.RedisConfig{
-			Host:     redisTestHost(),
+			Host:     host,
 			Port:     6379,
 			Password: "",
 			DB:       2, // Use DB 2 for testing
@@ -51,6 +54,12 @@ var _ = Describe("Redis Transporter", func() {
 
 	Describe("Connection", func() {
 		It("should connect to Redis", func() {
+			// Debug: Print environment variables
+			fmt.Printf("REDIS_HOST env var: %s\n", os.Getenv("REDIS_HOST"))
+			fmt.Printf("REDIS_PORT env var: %s\n", os.Getenv("REDIS_PORT"))
+			fmt.Printf("redisTestHost() returns: %s\n", redisTestHost())
+			fmt.Printf("redisTestPort() returns: %s\n", redisTestPort())
+
 			// Mock registry for testing
 			errChan := redisTransporter.Connect(nil)
 
