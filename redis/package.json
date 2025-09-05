@@ -1,0 +1,16 @@
+{
+  "name": "moleculer-redis-compatibility",
+  "version": "1.0.0",
+  "description": "Redis transporter compatibility tests between Moleculer JS and Go",
+  "main": "js-redis-service.js",
+  "scripts": {
+    "test": "node js-redis-service.js"
+  },
+  "dependencies": {
+    "moleculer": "^0.14.13",
+    "ioredis": "^5.3.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

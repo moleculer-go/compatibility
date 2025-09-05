@@ -20,6 +20,16 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
     - name: Checkout code
@@ -64,18 +74,20 @@ jobs:
         go install github.com/onsi/ginkgo/ginkgo/outline@v1.16.2
 
     - name: Build moleculerjs
-      run: go build ./compatibility/moleculerjs
+      run: go build ./moleculerjs
       working-directory: .
 
     - name: Install Node.js dependencies
       run: |
-        cd compatibility/moleculerjs
+        cd moleculerjs
         npm ci
 
     - name: Set environment variables
       run: |
         echo "STAN_HOST=nats-streaming" >> $GITHUB_ENV
         echo "NATS_HOST=nats-streaming" >> $GITHUB_ENV
+        echo "REDIS_HOST=redis" >> $GITHUB_ENV
+        echo "REDIS_PORT=6379" >> $GITHUB_ENV
 
     - name: Run tests
       run: |
