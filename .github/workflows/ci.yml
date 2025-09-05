@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      nats-streaming:
+        image: nats-streaming:latest
+        ports:
+          - 4222:4222
+        options: >-
+          --health-cmd "nats-streaming-server --help"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Cache Node modules
+      uses: actions/cache@v3
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+
+    - name: Install dependencies
+      run: |
+        go mod download
+        go mod verify
+
+    - name: Install Ginkgo
+      run: |
+        go install github.com/onsi/ginkgo/ginkgo@v1.16.2
+        go install github.com/onsi/ginkgo/ginkgo/outline@v1.16.2
+
+    - name: Build moleculerjs
+      run: go build ./compatibility/moleculerjs
+      working-directory: .
+
+    - name: Install Node.js dependencies
+      run: |
+        cd compatibility/moleculerjs
+        npm ci
+
+    - name: Set environment variables
+      run: |
+        echo "STAN_HOST=nats-streaming" >> $GITHUB_ENV
+        echo "NATS_HOST=nats-streaming" >> $GITHUB_ENV
+
+    - name: Run tests
+      run: |
+        ginkgo -r --randomizeAllSpecs --failFast --cover --trace
+      working-directory: .
+
+    - name: Install gover
+      run: go install github.com/modocache/gover@latest
+
+    - name: Generate coverage report
+      run: |
+        gover ./ coverage.txt
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.txt
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+    - name: Upload coverage to Coveralls
+      uses: coverallsapp/github-action@v1
+      with:
+        path-to-lcov: ./coverage.txt
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        fail_ci_if_error: false
+      env:
+        COVERALLS_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
+
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report
+        path: coverage.txt
